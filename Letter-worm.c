@@ -431,7 +431,7 @@ void startPrg()
 
                     case GAME_RUNNING:
                  
-                        for (i = length*8; i > 0; i--) {
+                        for (i = length*8 - 1; i > 0; i--) {
                             wormX[i] = wormX[i-1]; wormY[i] = wormY[i-1];
                             if (i > 8) {
                                 if (abs(wormX[0] - wormX[i]) == 0 && abs(wormY[0] - wormY[i]) == 0) state = GAME_OVER;
@@ -447,7 +447,7 @@ void startPrg()
                         SetBPen(rastport, 100);
                         SetAPen(rastport, 128);
 
-                        if (length > 25) length = 25;
+                        if (length > 26) length = 26;
 
                         for (i = 0; i < length*8; i++) {
                             if (i % 8 == 0) {
@@ -469,7 +469,7 @@ void startPrg()
                             length++;
                             foodX = rand() % 570 + 32;
                             foodY = rand() % 550 + 64;
-                            if (length == 25) state = GAME_WON;
+                            if (length == 26) state = GAME_WON;
                         }
                 
                         break;
