@@ -6,13 +6,17 @@ This is a small game I made just for fun..
 
 ## Amiga system
 
-Designed for AmiKit XE.
+Letter-worm.c is designed for AmiKit XE.
 
 ![Letter-worm](https://github.com/tickBit/Amiga-Letter-worm/assets/61118857/9722f171-b73c-44d8-91f2-5468b42b1ba0)
 
-
 On Amiga Forever's Workbench 3.X the picture doesn't show up with 32bit BGRA mode. It works with 16bit color mode, but doesn't look very nice..
+
+Letter-worm-OS4.c is designed for AmigaOS 4.
+
+![Letter-worm-OS4](https://github.com/tickBit/Amiga-Letter-worm/assets/61118857/001e81e9-69b1-4185-9f60-5bf7b18bdb6c)
 
 ## Compiling
 
-Can be compiled at least with GCC and DICE. Remember to use -// option with DICE for the comments.
+Letter-worm.c can be compiled at least with GCC and DICE. Remember to use -// option with DICE for the comments.
+Letter-worm-OS4.c can be compiled at least with VBCC.
