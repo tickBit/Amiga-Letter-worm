@@ -32,28 +32,19 @@
 #include <clib/dos_protos.h>
 
 /*
-   I guess my system's GCC's includes are older than the ones, that are needed for this.
-   This is why I've pasted these from later include files...
+    Below should be found from include files, but just in case...
 */
 
 
 #define PDTA_WhichPicture	(DTA_Dummy + 219)
 #define PDTA_GetNumPictures	(DTA_Dummy + 220)
 
-
-/* New for V44. Address of a DTST_MEMORY source type
- * object (APTR).
- */
-
-
 #define DTA_SourceAddress	(DTA_Dummy+39)
 
-
-/* New for V44. Size of a DTST_MEMORY source type
- * object (ULONG).
- */
-
 #define DTA_SourceSize		(DTA_Dummy+40)
+#define	PDTA_ModeID		(DTA_Dummy + 200)
+#define PDTA_SourceMode		(DTA_Dummy + 250)
+#define PMODE_V43 (1)	/* Extended mode */
 
 #define	DTST_MEMORY		5
 
@@ -65,16 +56,12 @@
 
 int state;
 
-struct Library *IntuitionBase;
-struct Library *DataTypesBase;
-struct Library *UtilityBase;
-struct Library *GfxBase;
-
-struct RastPort *rastport;
-
-struct DataType *dtn;
-
-struct TagItem *TagList;
+struct Library *IntuitionBase = NULL;
+struct Library *DataTypesBase = NULL;
+struct Library *UtilityBase = NULL;
+struct Library *GfxBase = NULL;
+struct BitMap *bitmap = NULL;
+struct BitMap *bgBitMap = NULL;
 
 struct Font *font;
 
@@ -119,18 +106,18 @@ void startPrg()
 {
 	
     int width, height, newWidth, newHeight;
-    struct BitMapHeader  *bmhd;
+    struct RastPort rastport;
 
     struct IntuiMessage *Message; 
 
-	Object *Item;
+	Object *Item = NULL;
 	APTR memory = NULL;
 
 	UWORD wormX[26*8], wormY[26*8];
     UWORD wormDX = 2;
     UWORD wormDY = 0;
 
-    BPTR fileHandle = NULL;
+    BPTR fileHandle;
 
     int i;
 
@@ -143,7 +130,7 @@ void startPrg()
 
 	fileHandle = Open(Name,MODE_OLDFILE);
     
-    if (fileHandle != NULL) {
+    if (fileHandle) {
 
 			BOOL good = FALSE;
 
@@ -179,8 +166,6 @@ void startPrg()
 		WA_Title,			"Letter worm",
 		WA_InnerWidth,		400,
 		WA_InnerHeight,		400,
-		WA_SizeBRight,		TRUE,
-		WA_SizeBBottom,		TRUE,
 		WA_CloseGadget,		TRUE,
 		WA_DepthGadget,		TRUE,
 		WA_DragBar,			TRUE,
@@ -188,8 +173,7 @@ void startPrg()
 		WA_RMBTrap,			TRUE,
 		WA_Activate,		TRUE,
         WA_SimpleRefresh,	TRUE,
-		WA_IDCMP,			IDCMP_CLOSEWINDOW | IDCMP_REFRESHWINDOW | IDCMP_NEWSIZE |
-							IDCMP_GADGETDOWN | IDCMP_IDCMPUPDATE |
+		WA_IDCMP,			IDCMP_CLOSEWINDOW |
 							IDCMP_RAWKEY,
 	                        TAG_DONE);
 
@@ -199,16 +183,18 @@ void startPrg()
 			Window->BorderLeft + 100 + Window->BorderRight,Window->BorderTop + 100 + Window->BorderBottom,
 			Window->WScreen->Width,Window->WScreen->Height);
 
+
 	if(memory != NULL)
 		{
-               
 			
 			Item = NewDTObject(Name,
-				PDTA_WhichPicture,	0,
-				PDTA_GetNumPictures, 1,
+				//PDTA_WhichPicture,	0,
+				//PDTA_GetNumPictures, 1,
                 DTA_SourceType,      DTST_MEMORY,
+                PDTA_SourceMode,    PMODE_V43,
 				DTA_SourceAddress,	memory,
 				DTA_SourceSize,		size,
+                PDTA_Remap,         TRUE,
 				GA_Immediate,		TRUE,
 				GA_RelVerify,		TRUE,
 				DTA_TextAttr,		Window->WScreen->Font,
@@ -225,6 +211,8 @@ void startPrg()
 			Item = NewDTObject(Name,
 				GA_Immediate,	TRUE,
 				GA_RelVerify,	TRUE,
+                PDTA_SourceMode,    PMODE_V43,
+                PDTA_Remap,     TRUE,
 				DTA_TextAttr,	Window->WScreen->Font,
 				GA_Left,		Window->BorderLeft,
 				GA_Top,			Window->BorderTop,
@@ -243,33 +231,57 @@ void startPrg()
 			/* struct IntuiMessage *Message; */
 			ULONG MsgClass;
 			UWORD MsgCode;
-			struct TagItem *MsgTags,*List,*This;
+			struct TagItem *MsgTags;
+            struct BitMapHeader *bmh;
 			BOOL Done;
 
-        	GetDTAttrs(Item, PDTA_BitMapHeader, &bmhd, TAG_DONE);
-        	width = bmhd->bmh_Width;
-        	height = bmhd->bmh_Height;
+            
+            struct dtFrameBox mydtFrameBox;       // Use this with DTM_FRAMEBOX method
+            struct FrameInfo myFrameInfo;         // For info returned from DTM_FRAMEBOX
+            struct gpLayout mygpLayout;           // Use this with DTM_PROCLAYOUT method/
+
+            mydtFrameBox.MethodID         = DTM_FRAMEBOX;
+            mydtFrameBox.dtf_GInfo        = NULL;
+            mydtFrameBox.dtf_ContentsInfo = NULL;
+            mydtFrameBox.dtf_FrameInfo    = &myFrameInfo;
+            mydtFrameBox.dtf_SizeFrameInfo= sizeof (struct FrameInfo);
+            mydtFrameBox.dtf_FrameFlags   = 0L;
+
+            // this has return value, operation could fail, no fail check here..
+            DoMethodA(Item,&mydtFrameBox);
+ 
+            // layout (remap) of the object on the process
+            mygpLayout.MethodID   = DTM_PROCLAYOUT;
+            mygpLayout.gpl_GInfo  = NULL;
+            mygpLayout.gpl_Initial= 1L;
+
+            // this has return value, operation could fail, no fail check here..
+            DoMethodA(Item, &mygpLayout);
+            
+
+        	GetDTAttrs(Item, PDTA_BitMapHeader, &bmh, PDTA_BitMap, &bgBitMap, TAG_END);
+        	width = bmh->bmh_Width;
+        	height = bmh->bmh_Height;
         	newWidth = width + Window->BorderLeft + Window->BorderRight;
         	newHeight = height + Window->BorderTop + Window->BorderBottom;
-
+            
             Done = FALSE;
 
-            /* add the item to the Window */
-            AddDTObject(Window,NULL,Item,-1);
-			RefreshDTObjects(Item,Window,NULL,NULL);
-
-            /* set new window dimensions */
-             
-            ChangeWindowBox(Window, Window->LeftEdge, Window->TopEdge, newWidth, newHeight);
+            /* set new window dimensions */ 
+            ChangeWindowBox(Window, Window->LeftEdge, Window->TopEdge, newWidth, newHeight);    
             
 			// rastport from window
-			rastport=Window->RPort;
     
-            fontWidth = rastport->TxWidth;
-            fontHeight = rastport->TxHeight;
-            fontBaseline = rastport->TxBaseline;
+            fontWidth = Window->RPort->TxWidth;
+            fontHeight = Window->RPort->TxHeight;
+            fontBaseline = Window->RPort->TxBaseline;
 
             state = START_SCREEN;
+
+            bitmap = (struct BitMap *)AllocBitMap(bmh->bmh_Width,bmh->bmh_Height,bmh->bmh_Depth,BMF_CLEAR | BMF_DISPLAYABLE,Window->RPort->BitMap);
+            InitRastPort(&rastport);
+            rastport.BitMap = bitmap;
+            
 
             /*
              *  Main event loop
@@ -370,65 +382,18 @@ void startPrg()
 
 							Done = TRUE;
 							break;
-						
-
-                        case IDCMP_IDCMPUPDATE:
-
-							List = MsgTags;
-
-							while((This = NextTagItem(&List)) != NULL)
-							{
-								switch(This->ti_Tag)
-								{
-									case DTA_Busy:
-
-										if(This->ti_Data)
-										{
-											SetWindowPointer(Window,
-												WA_BusyPointer,	TRUE,
-											TAG_DONE);
-										}
-										else
-										{
-											SetWindowPointerA(Window,NULL);
-										}
-
-										break;
-
-									case DTA_Sync:
-
-										RefreshDTObjects(Item,Window,NULL,NULL);
-										break;
-
-								}
-							}
-
-							break;
-						
-
-						case IDCMP_REFRESHWINDOW:
-
-							ReplyMsg((struct Message *)Message);
-
-							BeginRefresh(Window);
-							EndRefresh(Window,TRUE);
-
-							Message = NULL;
-
-							break;
-
+					
                         
 					}
 
 					if (Message != NULL)
 						ReplyMsg((struct Message *)Message);
 				}
-            
-                RefreshDTObjectA(Item,Window,NULL,NULL);
-                
+
+                BltBitMapRastPort(bgBitMap, 0, 0, &rastport, 0, 0, bmh->bmh_Width, bmh->bmh_Height, 192);
 
                 switch (state) {
-
+                  
                     case GAME_RUNNING:
                  
                         for (i = length*8 - 1; i > 0; i--) {
@@ -438,28 +403,28 @@ void startPrg()
                             }
                         }
                 
-                        SetAPen(rastport, rand() % 255);
-                        Move(rastport, foodX, foodY);
-                        DrawEllipse(rastport, foodX, foodY, 8,8);
+                        SetAPen(&rastport, rand() % 255);
+                        Move(&rastport, foodX, foodY);
+                        DrawEllipse(&rastport, foodX, foodY, 8,8);
 
 
                         // set colors for letters
-                        SetBPen(rastport, 100);
-                        SetAPen(rastport, 128);
+                        SetBPen(&rastport, 100);
+                        SetAPen(&rastport, 128);
 
                         if (length > 26) length = 26;
 
                         for (i = 0; i < length*8; i++) {
                             if (i % 8 == 0) {
-                                Move(rastport, wormX[i], wormY[i]);
-                                Text(rastport, WormLetters[i/8], 1);
+                                Move(&rastport, wormX[i], wormY[i]);
+                                Text(&rastport, WormLetters[i/8], 1);
                             }
                         }
 
                         wormX[0] += wormDX;
                         wormY[0] += wormDY;
 				
-                        if (wormX[0] < Window->BorderLeft + 2 || wormX[0] > newWidth - Window->BorderRight - 2 - Window->BorderLeft || wormY[0] < Window->TopEdge + fontBaseline || wormY[0] > Window->Height - Window->BorderBottom - 4) {
+                        if (wormX[0] < 2 || wormX[0] > newWidth - Window->BorderRight - Window->BorderLeft - fontWidth || wormY[0] < 2 || wormY[0] > Window->Height - Window->BorderBottom - fontHeight - Window->BorderTop) {
                             state = GAME_OVER;
                             break;
                         }
@@ -476,67 +441,57 @@ void startPrg()
 
                     case START_SCREEN:
 
-                        SetBPen(rastport, 7);
-                        SetAPen(rastport, 134);
-                        Move(rastport, (newWidth - TextLength(rastport, "Press return to start", 21)) / 2, Window->BorderTop + 64);
-                        Text(rastport,"Press return to start", 21);
+                        SetBPen(&rastport, 7);
+                        SetAPen(&rastport, 134);
+                        Move(&rastport, (newWidth - TextLength(&rastport, "Press return to start", 21)) / 2, Window->BorderTop + 64);
+                        Text(&rastport,"Press return to start", 21);
 
-                        Move(rastport, (newWidth - TextLength(rastport, "Press p key to pause and return or p again to continue", 54)) / 2, Window->BorderTop + 128);
-                        Text(rastport,"Press p key to pause and return or p again to continue", 54);
+                        Move(&rastport, (newWidth - TextLength(&rastport, "Press p key to pause and return or p again to continue", 54)) / 2, Window->BorderTop + 128);
+                        Text(&rastport,"Press p key to pause and return or p again to continue", 54);
 
-                        WaitTOF();
 
                         break;
 
                     case GAME_OVER:
 
-                        SetBPen(rastport, 96);
-                        SetAPen(rastport, 129);
-                        Move(rastport, (newWidth - TextLength(rastport, "GAME OVER", 9)) / 2,160);
-                        Text(rastport, "GAME OVER", 9);
+                        SetBPen(&rastport, 96);
+                        SetAPen(&rastport, 129);
+                        Move(&rastport, (newWidth - TextLength(&rastport, "GAME OVER", 9)) / 2,160);
+                        Text(&rastport, "GAME OVER", 9);
 
-                        WaitTOF();
                         break;
 
                     case GAME_WON:
 
-                        SetBPen(rastport, 36);
-                        SetAPen(rastport, 72);
-                        Move(rastport, (newWidth - TextLength(rastport, "YOU WON", 7)) / 2,160);
-                        Text(rastport, "YOU WON", 7);
+                        SetBPen(&rastport, 36);
+                        SetAPen(&rastport, 72);
+                        Move(&rastport, (newWidth - TextLength(&rastport, "YOU WON", 7)) / 2,160);
+                        Text(&rastport, "YOU WON", 7);
 
-                        Move(rastport, (newWidth - TextLength(rastport, "Perhaps you'll fly away as butterfly...", 39)) / 2,192);
-                        Text(rastport, "Perhaps you'll fly away as butterfly...", 39);
-
-                        WaitTOF();
+                        Move(&rastport, (newWidth - TextLength(&rastport, "Perhaps you'll fly away as butterfly...", 39)) / 2,192);
+                        Text(&rastport, "Perhaps you'll fly away as butterfly...", 39);
 
                         break;
 
                     case GAME_PAUSED:
 
-                        SetBPen(rastport, 101);
-                        SetAPen(rastport, 222);
-                        Move(rastport, (newWidth - TextLength(rastport, "PAUSED", 6)) / 2,160);
-                        Text(rastport, "PAUSED", 6);
-
-                        WaitTOF();
+                        SetBPen(&rastport, 101);
+                        SetAPen(&rastport, 222);
+                        Move(&rastport, (newWidth - TextLength(&rastport, "PAUSED", 6)) / 2,160);
+                        Text(&rastport, "PAUSED", 6);
 
                         break;
                 }
 
-                
-
+                ClipBlit(&rastport, 0, 0, Window->RPort, Window->BorderLeft, Window->BorderTop, bmh->bmh_Width, bmh->bmh_Height, 192);
                 WaitTOF();
 
 			} while(!Done);
 
-
-			RemoveDTObject(Window,Item);
-
 			DisposeDTObject(Item);
 
 		}
-
+        
 		cleanup(memory, Window);
 	}
 
@@ -597,14 +552,15 @@ int main(int argc,char **argv)
 
 int cleanup(memory, Window) {
 
-    if (DataTypesBase != NULL) CloseLibrary(DataTypesBase);
-    if (IntuitionBase != NULL) CloseLibrary(IntuitionBase);
-    if (UtilityBase != NULL) CloseLibrary(UtilityBase);
-	if (GfxBase != NULL) CloseLibrary(GfxBase);
+    if (bitmap) FreeBitMap((struct BitMap *)bitmap);
+    if (DataTypesBase) CloseLibrary(DataTypesBase);
+    if (IntuitionBase) CloseLibrary(IntuitionBase);
+    if (UtilityBase) CloseLibrary(UtilityBase);
+	if (GfxBase) CloseLibrary(GfxBase);
 
-    if (memory != NULL) FreeVec((APTR)memory);
+    if (memory) FreeVec((APTR)memory);
 
-	if (Window != NULL) CloseWindow((struct Window *)Window);
+	if (Window) CloseWindow((struct Window *)Window);
 	
 	exit(0);
 
