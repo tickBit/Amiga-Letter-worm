@@ -98,7 +98,7 @@ char *WormLetters[] = {
     
     // Font
     struct TextAttr myta = {
-      (STRPTR)"topaz.font",
+      "topaz.font",
       11, 0, 0
    };
  
