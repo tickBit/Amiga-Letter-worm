@@ -99,7 +99,7 @@ char *WormLetters[] = {
     // Font
     struct TextAttr myta = {
       (STRPTR)"topaz.font",
-      11, 0, 1
+      11, 0, 0
    };
  
     
@@ -185,6 +185,7 @@ char *WormLetters[] = {
         if (myfont = IDiskfont->OpenDiskFont(&myta))
         {
             IGraphics->SetFont(&rastport, myfont);
+            IGraphics->SetDrMd(&rastport, JAM2 );
         }
         
         BOOL going = TRUE;
