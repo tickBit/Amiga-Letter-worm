@@ -10,7 +10,7 @@ Letter-worm.c is designed for AmiKit XE.
 
 ![Letter-worm](https://github.com/tickBit/Amiga-Letter-worm/assets/61118857/9722f171-b73c-44d8-91f2-5468b42b1ba0)
 
-On Amiga Forever's Workbench 3.X the picture doesn't show up with 32bit BGRA mode. It works with 16bit color mode, but doesn't look very nice..
+Now runs smoothly and fast on Amiga Forever's Workbench 3.X.
 
 Letter-worm-OS4.c is designed for AmigaOS 4.
 
